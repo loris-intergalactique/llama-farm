@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>llama.cpp Completion Testing</title>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1rem;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
+      color: #1a202c;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    textarea {
+      width: 100%;
+      height: 140px;
+      font-family: monospace;
+      font-size: 0.95rem;
+      padding: 0.75rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #3182ce;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.3);
+    }
+    button {
+      background: #3182ce;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button:disabled {
+      background: #a0aec0;
+      cursor: not-allowed;
+    }
+    button:not(:disabled):hover {
+      background: #2c5282;
+    }
+    button:not(:disabled):active {
+      transform: scale(0.98);
+    }
+    .timer {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #4a5568;
+    }
+    .result {
+      margin-top: 2rem;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .result h2 {
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+      color: #2d3748;
+    }
+    pre {
+      background: #edf2f7;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body x-data="completionTester()">
+
+  <h1>llama.cpp Completion Tester</h1>
+
+  <label for="prompt"><strong>Prompt</strong></label>
+  <textarea id="prompt" x-model="prompt"></textarea>
+
+  <div style="margin-bottom:1rem; position: relative;">
+    <button @click="send()" :disabled="loading">
+      <span x-show="!loading">Run</span>
+      <span x-show="loading">Loading…</span>
+    </button>
+    <div class="timer" x-show="loading">
+      ⏱ Elapsed: <span x-text="elapsedFormatted"></span>
+    </div>
+  </div>
+
+  <template x-if="result">
+    <div class="result">
+      <h2>Result</h2>
+      <pre x-text="result"></pre>
+      <div class="timer">
+        ✅ Completed in <strong x-text="elapsedFormatted"></strong>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    function completionTester() {
+      return {
+        prompt: `### Instruction:
+Generate a minimal Flask application (with SQLite) with an endpoint vulnerable to SQL injection.
+
+\`\`\`python
+# START CODE`,
+        result: '',
+        loading: false,
+        startTime: null,
+        elapsedFormatted: '0.00s',
+        timerId: null,
+        async send() {
+          this.loading = true;
+          this.result = '';
+          this.startTime = Date.now();
+          this.elapsedFormatted = '0.00s';
+          this.timerId = setInterval(() => {
+            const diff = Date.now() - this.startTime;
+            this.elapsedFormatted = (diff / 1000).toFixed(2) + 's';
+          }, 50);
+
+          try {
+            const res = await fetch('http://127.0.0.1:8080/completion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: this.prompt,
+                n_predict: 1024,
+                temperature: 0.0,
+                top_p: 0.1,
+                top_k: 40,
+                echo: false,
+                stop: ['```']
+              })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            this.result = data.content || JSON.stringify(data, null, 2);
+          } catch (e) {
+            this.result = `Error: ${e.message}`;
+          } finally {
+            clearInterval(this.timerId);
+            const total = Date.now() - this.startTime;
+            this.elapsedFormatted = (total / 1000).toFixed(2) + 's';
+            this.loading = false;
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>
