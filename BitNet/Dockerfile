@@ -34,6 +34,7 @@ RUN <<EOF
     cmake --build build --target llama-server
 EOF
 
+WORKDIR /opt/bitnet
 COPY <<EOF /opt/entrypoint.sh
 #!/usr/bin/env bash
 set -ex
@@ -41,7 +42,7 @@ set -ex
 if [ \$# -eq 0 ]; then
     echo "Usage: \$0 <command>"
     echo "Commands:"
-    echo "  web: Run the web server"
+    echo "  api: Run the web server"
     echo "  cli: Run the CLI"
     exit 1
 else
@@ -57,9 +58,10 @@ case "\$COMMAND" in
             \$@
         ;;
     cli)
-        /opt/bitnet/run_inference.py \\
+        python /opt/bitnet/run_inference.py \\
             -m /models/BitNet-b1.58-2B-4T/*.gguf \\
             -cnv \\
+            -p "you are a helpful assistant" \\
             \$@
         ;;
 

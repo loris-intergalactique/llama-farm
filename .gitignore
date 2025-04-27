@@ -1,0 +1,4 @@
+**/.venv
+BitNet/BitNet-b1.58-2B-4T
+**/*.pyc
+__pycache__
